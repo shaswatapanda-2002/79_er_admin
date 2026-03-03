@@ -24,7 +24,6 @@ export const adminNav: AdminNavItem[] = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard, section: "main" },
   { title: "App Users", href: "/app-users", icon: Users, section: "main" },
   { title: "Agencies", href: "/agencies", icon: Building2, section: "main" },
-  { title: "Demo Requests", href: "/demo-requests", icon: ClipboardList, section: "main" },
   { title: "Subscriptions", href: "/subscriptions", icon: CreditCard, section: "main" },
   { title: "Payments", href: "/payments", icon: DollarSign, section: "main" },
   { title: "Analytics", href: "/analytics", icon: BarChart3, section: "main" },
