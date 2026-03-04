@@ -1,16 +1,14 @@
-// ==========================================
-// FILE 4: app/(auth)/sign-in/page.tsx
-// (Updated to use useAdminLoginMutation - no fetch)
-// ==========================================
+// app/(auth)/sign-in/page.tsx
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useAdminLoginMutation } from "@/src/queries/auth.mutations";
+import { Mail, Lock } from "lucide-react";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -35,66 +33,90 @@ export default function SignInPage() {
           router.refresh();
         },
         onError: (e: any) => setErr(e?.message || "Login failed"),
-      }
+      },
     );
   }
 
   return (
-    <Card className="w-full max-w-[420px] rounded-2xl shadow-sm border">
-      <CardHeader className="space-y-1">
-        <div className="text-center">
-          <div className="text-xl font-semibold">Admin Sign in</div>
-          <div className="text-sm text-muted-foreground">
-            Enter your credentials to continue
-          </div>
-        </div>
-      </CardHeader>
+    <div className="min-h-[calc(100dvh-0px)] w-full flex items-center justify-center bg-white px-4">
+      <Card className="w-full max-w-[420px] rounded-2xl border bg-white shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
+        <CardContent className="p-6 sm:p-7">
+          {/* Logo */}
+          <div className="flex flex-col items-center text-center">
+            <div className="mb-3 flex items-center justify-center">
+              {/* Put your logo in /public/logo.png (or change this path) */}
+              <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center">
+                <Image
+                  src="/adminlogo.png"
+                  alt="79er"
+                  width={48}
+                  height={48}
+                  className="h-12 w-12 object-contain"
+                  priority
+                />
+              </div>
+            </div>
 
-      <CardContent>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label>Email</Label>
-            <Input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@email.com"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Password</Label>
-            <Input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              placeholder="••••••••"
-            />
+            <div className="text-xl font-semibold text-foreground">Admin Portal</div>
+            <div className="mt-1 text-sm text-muted-foreground">
+              Sign in to access the dashboard
+            </div>
           </div>
 
-          {err ? <div className="text-sm text-red-600">{err}</div> : null}
+          <form onSubmit={onSubmit} className="mt-6 space-y-4">
+            {/* Email */}
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-foreground/80">Email Address</div>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@example.com"
+                  className="pl-9 rounded-xl"
+                  autoComplete="email"
+                />
+              </div>
+            </div>
 
-          <Button className="w-full" disabled={login.isPending}>
-            {login.isPending ? "Signing in..." : "Sign in"}
-          </Button>
+            {/* Password */}
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-foreground/80">Password</div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  type="password"
+                  placeholder="••••••••"
+                  className="pl-9 rounded-xl"
+                  autoComplete="current-password"
+                />
+              </div>
+            </div>
 
-          <div className="flex justify-between text-sm">
-            <button
-              type="button"
-              className="underline underline-offset-4"
-              onClick={() => router.push("/forgot-password")}
+            {err ? <div className="text-sm text-red-600">{err}</div> : null}
+
+            <Button
+              className="w-full rounded-xl bg-orange-600 hover:bg-orange-600"
+              disabled={login.isPending}
             >
-              Forgot password?
-            </button>
-            <button
-              type="button"
-              className="underline underline-offset-4"
-              onClick={() => router.push("/sign-up")}
-            >
-              Create admin
-            </button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
+              {login.isPending ? "Signing in..." : "Sign in"}
+            </Button>
+
+            {/* Keep create admin button */}
+            <div className="pt-1 flex justify-end">
+              <button
+                type="button"
+                className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-4"
+                onClick={() => router.push("/sign-up")}
+              >
+                Create admin
+              </button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
