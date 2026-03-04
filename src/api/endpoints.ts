@@ -35,4 +35,8 @@ export const ENDPOINTS = {
    ANALYTICS: {
     OVERVIEW: "/api/admin/analytics/overview",
   },
+   SETTINGS: {
+    PROFILE: "/api/admin/profile", // GET, PUT
+    CHANGE_PASSWORD: "/api/admin/change-password", // PUT
+  },
 } as const;
