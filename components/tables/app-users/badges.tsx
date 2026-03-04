@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import type { Subscription, UserStatus } from "./types";
-
+//components/tables/app-users/badges.tsx
 export function SubscriptionBadge({ value }: { value: Subscription }) {
   const label =
     value === "premium" ? "Premium" :
