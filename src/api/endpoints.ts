@@ -27,4 +27,12 @@ export const ENDPOINTS = {
     DETAILS: (agencyId: string) => `/api/admin/agencies/${agencyId}`,
     SUSPEND: (agencyId: string) => `/api/admin/agencies/${agencyId}/suspend`, // PATCH { suspended: true/false }
   },
+  PAYMENTS: {
+    SUMMARY: "/api/admin/payments/summary",
+    LIST: "/api/admin/allPayments",
+    EXPORT: "/api/admin/payments/export", // returns csv
+  },
+   ANALYTICS: {
+    OVERVIEW: "/api/admin/analytics/overview",
+  },
 } as const;

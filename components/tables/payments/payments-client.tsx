@@ -8,7 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge, TypePill } from "./badges";
 import type { PaymentRow, PaymentStatus } from "./types";
-import { DollarSign, Clock3, FileText, RefreshCcw, Download } from "lucide-react";
+import { DollarSign, FileText, Download, Loader2 } from "lucide-react";
+
+import { usePaymentsListQuery, usePaymentsSummaryQuery } from "@/src/queries/payments.queries";
+import { mapPaymentRowToUI } from "./mapper";
+import { http } from "@/lib/http/client";
+import { ENDPOINTS } from "@/src/api/endpoints";
+import { toastError } from "@/lib/toast";
 
 function money(n: number) {
   return n.toLocaleString(undefined, { style: "currency", currency: "USD" });
@@ -38,58 +44,62 @@ function StatCard({
   );
 }
 
-export default function PaymentsClient({ initial }: { initial: PaymentRow[] }) {
-  const [items] = useState<PaymentRow[]>(initial);
+export default function PaymentsClient() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | PaymentStatus>("all");
+
+  const summaryQ = usePaymentsSummaryQuery();
+  const listQ = usePaymentsListQuery({ page: 1, limit: 50 });
+
+  const items: PaymentRow[] = useMemo(() => {
+    const rows = listQ.data?.data || [];
+    return rows.map(mapPaymentRowToUI);
+  }, [listQ.data]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
     return items.filter((x) => {
-      const matchesSearch = !s || x.invoice.toLowerCase().includes(s);
-      const matchesStatus = status === "all" ? true : x.status === status;
+      const matchesSearch = !s || (x.invoice || "").toLowerCase().includes(s);
+      const matchesStatus = status === "all" ? true : x.status === status; // frontend-only for now
       return matchesSearch && matchesStatus;
     });
   }, [items, q, status]);
 
   const stats = useMemo(() => {
-    const totalRevenue = items
-      .filter((x) => x.status === "completed" && x.type === "subscription")
-      .reduce((acc, x) => acc + x.amount, 0);
+    const api = summaryQ.data?.data;
+    if (api) {
+      return {
+        totalRevenue: api.totalRevenue,
+        totalTransactions: api.totalTransactions,
+      };
+    }
+    return {
+      totalRevenue: 0,
+      totalTransactions: items.length,
+    };
+  }, [summaryQ.data, items.length]);
 
-    const pendingAmount = items
-      .filter((x) => x.status === "pending")
-      .reduce((acc, x) => acc + x.amount, 0);
+  const loading = summaryQ.isLoading || listQ.isLoading;
 
-    const totalTransactions = items.length;
-    const refundsIssued = items.filter((x) => x.type === "refund" || x.status === "refunded").length;
+  async function exportCsvFromServer() {
+    try {
+      // Use axios instance to keep auth header + baseURL
+      const res = await http.get(ENDPOINTS.PAYMENTS.EXPORT, {
+        responseType: "blob",
+      });
 
-    return { totalRevenue, pendingAmount, totalTransactions, refundsIssued };
-  }, [items]);
+      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
 
-  function exportCsv() {
-    // simple client-side CSV for now
-    const headers = ["Invoice", "Plan", "Type", "Amount", "Payment Method", "Status", "Date"];
-    const rows = filtered.map((r) => [
-      r.invoice,
-      r.plan,
-      r.type,
-      r.amount,
-      r.method,
-      r.status,
-      r.date,
-    ]);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "payments.csv";
+      a.click();
 
-    const csv = [headers, ...rows].map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "payments.csv";
-    a.click();
-
-    URL.revokeObjectURL(url);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toastError(e?.message || "Failed to export CSV");
+    }
   }
 
   return (
@@ -97,32 +107,20 @@ export default function PaymentsClient({ initial }: { initial: PaymentRow[] }) {
       {/* Header */}
       <div>
         <div className="text-xl font-semibold">Payments &amp; Billing</div>
-        <div className="text-sm text-muted-foreground">
-          Track transactions, invoices, and revenue
-        </div>
+        <div className="text-sm text-muted-foreground">Track transactions, invoices, and revenue</div>
       </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <StatCard
-          value={money(stats.totalRevenue)}
+          value={loading ? "…" : money(stats.totalRevenue)}
           label="Total Revenue"
           icon={<DollarSign className="h-4 w-4 text-green-600" />}
         />
         <StatCard
-          value={money(stats.pendingAmount)}
-          label="Pending Amount"
-          icon={<Clock3 className="h-4 w-4 text-yellow-600" />}
-        />
-        <StatCard
-          value={`${stats.totalTransactions}`}
+          value={loading ? "…" : `${stats.totalTransactions}`}
           label="Total Transactions"
           icon={<FileText className="h-4 w-4 text-blue-600" />}
-        />
-        <StatCard
-          value={`${stats.refundsIssued}`}
-          label="Refunds Issued"
-          icon={<RefreshCcw className="h-4 w-4 text-purple-600" />}
         />
       </div>
 
@@ -149,8 +147,12 @@ export default function PaymentsClient({ initial }: { initial: PaymentRow[] }) {
           </SelectContent>
         </Select>
 
-        <Button className="rounded-xl bg-orange-600 hover:bg-orange-600 gap-2" onClick={exportCsv}>
-          <Download className="h-4 w-4" />
+        <Button
+          className="rounded-xl bg-orange-600 hover:bg-orange-600 gap-2"
+          onClick={exportCsvFromServer}
+          disabled={loading}
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
           Export
         </Button>
       </div>
@@ -171,36 +173,46 @@ export default function PaymentsClient({ initial }: { initial: PaymentRow[] }) {
           </TableHeader>
 
           <TableBody>
-            {filtered.map((r) => (
-              <TableRow key={r.id} className="hover:bg-muted/20">
-                <TableCell>
-                  <div className="font-medium">{r.invoice}</div>
-                  <div className="text-xs text-muted-foreground">{r.userLabel}</div>
-                </TableCell>
-
-                <TableCell className="text-sm">{r.plan}</TableCell>
-                <TableCell>
-                  <TypePill type={r.type} />
-                </TableCell>
-
-                <TableCell className="text-sm font-medium">{money(r.amount)}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{r.method}</TableCell>
-
-                <TableCell>
-                  <StatusBadge status={r.status} />
-                </TableCell>
-
-                <TableCell className="text-sm text-muted-foreground">{r.date}</TableCell>
-              </TableRow>
-            ))}
-
-            {filtered.length === 0 ? (
+            {loading ? (
               <TableRow>
                 <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
-                  No payments found.
+                  Loading payments...
                 </TableCell>
               </TableRow>
-            ) : null}
+            ) : (
+              <>
+                {filtered.map((r) => (
+                  <TableRow key={r.id} className="hover:bg-muted/20">
+                    <TableCell>
+                      <div className="font-medium">{r.invoice}</div>
+                      <div className="text-xs text-muted-foreground">{r.userLabel}</div>
+                    </TableCell>
+
+                    <TableCell className="text-sm">{r.plan}</TableCell>
+                    <TableCell>
+                      <TypePill type={r.type} />
+                    </TableCell>
+
+                    <TableCell className="text-sm font-medium">{money(r.amount)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{r.method}</TableCell>
+
+                    <TableCell>
+                      <StatusBadge status={r.status} />
+                    </TableCell>
+
+                    <TableCell className="text-sm text-muted-foreground">{r.date}</TableCell>
+                  </TableRow>
+                ))}
+
+                {filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                      No payments found.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+              </>
+            )}
           </TableBody>
         </Table>
       </div>
