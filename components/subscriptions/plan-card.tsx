@@ -5,13 +5,15 @@ import type { Plan } from "@/lib/subscription-plans";
 import { cn } from "@/lib/utils";
 
 function formatPrice(price: number) {
-  // show $0, $2.99, $29, $499
   const hasDecimals = Math.round(price * 100) % 100 !== 0;
   return hasDecimals ? price.toFixed(2) : String(price);
 }
 
 export function PlanCard({ plan }: { plan: Plan }) {
   const isPopular = !!plan.popular;
+
+  const pricePrefix =
+    plan.currency && plan.currency !== "USD" ? `${plan.currency} ` : "$";
 
   return (
     <Card
@@ -30,20 +32,29 @@ export function PlanCard({ plan }: { plan: Plan }) {
 
       <CardContent className="p-6 text-center">
         <div className="text-sm font-semibold">{plan.name}</div>
-        <div className="text-xs text-muted-foreground mt-1">{plan.subtitle}</div>
+        <div className="text-xs text-muted-foreground mt-1">
+          {plan.subtitle || ""}
+        </div>
 
         <div className="mt-4">
-          <span className="text-2xl font-semibold">${formatPrice(plan.price)}</span>
+          <span className="text-2xl font-semibold">
+            {pricePrefix}
+            {formatPrice(plan.price)}
+          </span>
           <span className="text-xs text-muted-foreground">/{plan.cycle}</span>
         </div>
 
-        <div className="mt-4 text-xs text-muted-foreground leading-5">{plan.description}</div>
+        <div className="mt-4 text-xs text-muted-foreground leading-5">
+          {plan.description}
+        </div>
 
         <div className="mt-6">
           <Button
             className={cn(
               "w-full rounded-xl",
-              isPopular ? "bg-orange-600 hover:bg-orange-600 text-white" : "bg-slate-900 hover:bg-slate-900 text-white",
+              isPopular
+                ? "bg-orange-600 hover:bg-orange-600 text-white"
+                : "bg-slate-900 hover:bg-slate-900 text-white",
             )}
             variant="default"
           >

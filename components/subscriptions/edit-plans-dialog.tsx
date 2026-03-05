@@ -19,10 +19,17 @@ export function EditPlansDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
   allPlans: Plan[];
-  onSavePlan: (planId: string, patch: Partial<Plan>, enforceSinglePopular: boolean) => void;
+  onSavePlan: (
+    planId: string,
+    patch: Partial<Plan>,
+    enforceSinglePopular: boolean,
+  ) => void;
 }) {
   const [planType, setPlanType] = useState<PlanType>("app");
-  const plansOfType = useMemo(() => allPlans.filter((p) => p.type === planType), [allPlans, planType]);
+  const plansOfType = useMemo(
+    () => allPlans.filter((p) => p.type === planType),
+    [allPlans, planType],
+  );
 
   const [selectedId, setSelectedId] = useState<string>("");
 
@@ -35,31 +42,44 @@ export function EditPlansDialog({
   const [name, setName] = useState("");
   const [price, setPrice] = useState<string>("0");
   const [cycle, setCycle] = useState<BillingCycle>("month");
+  const [currency, setCurrency] = useState<string>("USD");
   const [description, setDescription] = useState("");
   const [features, setFeatures] = useState("");
   const [popular, setPopular] = useState(false);
 
+  // extra fields from backend
+  const [status, setStatus] = useState<"active" | "inactive">("active");
+  const [stripePriceId, setStripePriceId] = useState("");
+
   useEffect(() => {
-    // set default selection whenever type changes
     const first = plansOfType[0]?.id ?? "";
     setSelectedId(first);
   }, [planType, plansOfType]);
 
   useEffect(() => {
     if (!selected) return;
+
     setName(selected.name);
-    setPrice(String(selected.price));
+    setPrice(String(selected.price ?? 0));
     setCycle(selected.cycle);
-    setDescription(selected.description);
-    setFeatures(selected.features);
+    setCurrency(selected.currency || (selected.type === "agency" ? "SGD" : "USD"));
+    setDescription(selected.description || "");
+    setFeatures(selected.features || "");
     setPopular(!!selected.popular);
+
+    setStatus(selected.status ?? "active");
+    setStripePriceId(selected.stripePriceId || "");
   }, [selected]);
+
+  const cycleDisabled = planType === "agency"; // B2B monthly only
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[720px] rounded-2xl">
         <DialogHeader>
-          <DialogTitle className="text-base font-semibold">Edit Subscription Plans</DialogTitle>
+          <DialogTitle className="text-base font-semibold">
+            Edit Subscription Plans
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -87,7 +107,7 @@ export function EditPlansDialog({
               <SelectContent>
                 {plansOfType.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.name}
+                    {p.name} ({p.type === "app" ? p.cycle : "month"})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -97,13 +117,18 @@ export function EditPlansDialog({
           {/* Plan name */}
           <div className="space-y-2">
             <Label>Plan Name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-xl" placeholder="e.g., Premium Plan" />
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="rounded-xl"
+              placeholder="e.g., Premium Plan"
+            />
           </div>
 
           {/* Price + Cycle row */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Price ($)</Label>
+              <Label>Price</Label>
               <Input
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
@@ -114,7 +139,11 @@ export function EditPlansDialog({
 
             <div className="space-y-2">
               <Label>Billing Cycle</Label>
-              <Select value={cycle} onValueChange={(v) => setCycle(v as BillingCycle)}>
+              <Select
+                value={cycle}
+                onValueChange={(v) => setCycle(v as BillingCycle)}
+                disabled={cycleDisabled}
+              >
                 <SelectTrigger className="rounded-xl">
                   <SelectValue placeholder="Select..." />
                 </SelectTrigger>
@@ -123,13 +152,59 @@ export function EditPlansDialog({
                   <SelectItem value="year">Year</SelectItem>
                 </SelectContent>
               </Select>
+              {cycleDisabled ? (
+                <div className="text-xs text-muted-foreground">
+                  Agency plans support monthly only
+                </div>
+              ) : null}
             </div>
+          </div>
+
+          {/* Currency + Status */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Input
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                className="rounded-xl"
+                placeholder="USD / SGD"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={(v) => setStatus(v as any)}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Stripe Price ID */}
+          <div className="space-y-2">
+            <Label>Stripe Price ID</Label>
+            <Input
+              value={stripePriceId}
+              onChange={(e) => setStripePriceId(e.target.value)}
+              className="rounded-xl"
+              placeholder="price_..."
+            />
           </div>
 
           {/* Description */}
           <div className="space-y-2">
             <Label>Description</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-xl" />
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="rounded-xl"
+            />
           </div>
 
           {/* Features */}
@@ -145,7 +220,11 @@ export function EditPlansDialog({
 
           {/* Popular */}
           <div className="flex items-center gap-2">
-            <Checkbox id="popular" checked={popular} onCheckedChange={(v) => setPopular(Boolean(v))} />
+            <Checkbox
+              id="popular"
+              checked={popular}
+              onCheckedChange={(v) => setPopular(Boolean(v))}
+            />
             <Label htmlFor="popular" className="text-sm">
               Mark as Most Popular
             </Label>
@@ -153,9 +232,14 @@ export function EditPlansDialog({
 
           {/* Actions */}
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" className="rounded-xl" onClick={() => onOpenChange(false)}>
+            <Button
+              variant="outline"
+              className="rounded-xl"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
+
             <Button
               className="rounded-xl bg-orange-600 hover:bg-orange-600"
               onClick={() => {
@@ -165,12 +249,15 @@ export function EditPlansDialog({
                   {
                     name,
                     price: Number(price || 0),
-                    cycle,
+                    cycle: cycleDisabled ? "month" : cycle,
+                    currency,
                     description,
                     features,
                     popular,
+                    status,
+                    stripePriceId: stripePriceId || null,
                   },
-                  true, // enforce single popular per type
+                  true,
                 );
                 onOpenChange(false);
               }}
