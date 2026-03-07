@@ -143,9 +143,6 @@ export function UserDetailsDialog({
               </div>
             </div>
 
-            <Button variant="outline" className="rounded-xl gap-2" onClick={onEdit}>
-              <Pencil className="h-4 w-4" /> Edit
-            </Button>
           </div>
 
           {/* Stats */}
@@ -253,22 +250,8 @@ export function UserDetailsDialog({
                 {user.status === "active" ? "Suspend" : "Activate"}
               </Button>
 
-              <Button
-                variant="outline"
-                className="justify-center gap-2 rounded-xl"
-                onClick={onActivityLogs}
-              >
-                <Eye className="h-4 w-4" />
-                Activity Logs
-              </Button>
 
-              <Button
-                variant="outline"
-                className="justify-center gap-2 rounded-xl"
-                onClick={onResetPassword}
-              >
-                Reset Password
-              </Button>
+             
             </div>
           </div>
         </div>

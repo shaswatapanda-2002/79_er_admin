@@ -9,8 +9,15 @@ function formatPrice(price: number) {
   return hasDecimals ? price.toFixed(2) : String(price);
 }
 
-export function PlanCard({ plan }: { plan: Plan }) {
+export function PlanCard({
+  plan,
+  onChoosePlan,
+}: {
+  plan: Plan;
+  onChoosePlan?: () => void;
+}) {
   const isPopular = !!plan.popular;
+  const isInactive = plan.status === "inactive";
 
   const pricePrefix =
     plan.currency && plan.currency !== "USD" ? `${plan.currency} ` : "$";
@@ -18,14 +25,23 @@ export function PlanCard({ plan }: { plan: Plan }) {
   return (
     <Card
       className={cn(
-        "relative rounded-2xl border bg-white shadow-sm w-[260px]",
+        "relative rounded-2xl border bg-white shadow-sm w-[260px] transition",
         isPopular ? "border-orange-400 shadow-md" : "border-gray-200",
+        isInactive && "opacity-70"
       )}
     >
       {isPopular ? (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
           <Badge className="rounded-full bg-orange-500 text-white hover:bg-orange-500 px-3 py-1 text-[11px]">
             Most Popular
+          </Badge>
+        </div>
+      ) : null}
+
+      {isInactive ? (
+        <div className="absolute top-3 right-3">
+          <Badge className="rounded-full bg-gray-200 text-gray-700 hover:bg-gray-200 px-3 py-1 text-[11px]">
+            Inactive
           </Badge>
         </div>
       ) : null}
@@ -54,11 +70,13 @@ export function PlanCard({ plan }: { plan: Plan }) {
               "w-full rounded-xl",
               isPopular
                 ? "bg-orange-600 hover:bg-orange-600 text-white"
-                : "bg-slate-900 hover:bg-slate-900 text-white",
+                : "bg-slate-900 hover:bg-slate-900 text-white"
             )}
             variant="default"
+            onClick={onChoosePlan}
+            type="button"
           >
-            {plan.cta}
+            {isInactive ? "Edit Plan" : plan.cta}
           </Button>
         </div>
       </CardContent>

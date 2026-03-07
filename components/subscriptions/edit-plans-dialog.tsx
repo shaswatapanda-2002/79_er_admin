@@ -15,6 +15,8 @@ export function EditPlansDialog({
   onOpenChange,
   allPlans,
   onSavePlan,
+  initialPlanId,
+  initialPlanType,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -24,8 +26,11 @@ export function EditPlansDialog({
     patch: Partial<Plan>,
     enforceSinglePopular: boolean,
   ) => void;
+  initialPlanId?: string;
+  initialPlanType?: PlanType;
 }) {
-  const [planType, setPlanType] = useState<PlanType>("app");
+  const [planType, setPlanType] = useState<PlanType>(initialPlanType || "app");
+
   const plansOfType = useMemo(
     () => allPlans.filter((p) => p.type === planType),
     [allPlans, planType],
@@ -38,7 +43,6 @@ export function EditPlansDialog({
     [plansOfType, selectedId],
   );
 
-  // form fields
   const [name, setName] = useState("");
   const [price, setPrice] = useState<string>("0");
   const [cycle, setCycle] = useState<BillingCycle>("month");
@@ -46,15 +50,27 @@ export function EditPlansDialog({
   const [description, setDescription] = useState("");
   const [features, setFeatures] = useState("");
   const [popular, setPopular] = useState(false);
-
-  // extra fields from backend
   const [status, setStatus] = useState<"active" | "inactive">("active");
   const [stripePriceId, setStripePriceId] = useState("");
 
   useEffect(() => {
+    if (!open) return;
+
+    const nextType = initialPlanType || "app";
+    setPlanType(nextType);
+  }, [open, initialPlanType]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (initialPlanId) {
+      setSelectedId(initialPlanId);
+      return;
+    }
+
     const first = plansOfType[0]?.id ?? "";
     setSelectedId(first);
-  }, [planType, plansOfType]);
+  }, [open, initialPlanId, plansOfType]);
 
   useEffect(() => {
     if (!selected) return;
@@ -66,16 +82,15 @@ export function EditPlansDialog({
     setDescription(selected.description || "");
     setFeatures(selected.features || "");
     setPopular(!!selected.popular);
-
     setStatus(selected.status ?? "active");
     setStripePriceId(selected.stripePriceId || "");
   }, [selected]);
 
-  const cycleDisabled = planType === "agency"; // B2B monthly only
+  const cycleDisabled = planType === "agency";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[720px] rounded-2xl">
+      <DialogContent className="max-w-[720px] rounded-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold">
             Edit Subscription Plans
@@ -83,7 +98,6 @@ export function EditPlansDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Plan Type */}
           <div className="space-y-2">
             <Label>Plan Type</Label>
             <Select value={planType} onValueChange={(v) => setPlanType(v as PlanType)}>
@@ -97,7 +111,6 @@ export function EditPlansDialog({
             </Select>
           </div>
 
-          {/* Select plan */}
           <div className="space-y-2">
             <Label>Select Plan to Edit</Label>
             <Select value={selectedId} onValueChange={setSelectedId}>
@@ -107,14 +120,13 @@ export function EditPlansDialog({
               <SelectContent>
                 {plansOfType.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
-                    {p.name} ({p.type === "app" ? p.cycle : "month"})
+                    {p.name} ({p.type === "app" ? p.cycle : "month"}) {p.status === "inactive" ? "- inactive" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          {/* Plan name */}
           <div className="space-y-2">
             <Label>Plan Name</Label>
             <Input
@@ -125,7 +137,6 @@ export function EditPlansDialog({
             />
           </div>
 
-          {/* Price + Cycle row */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Price</Label>
@@ -160,7 +171,6 @@ export function EditPlansDialog({
             </div>
           </div>
 
-          {/* Currency + Status */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Currency</Label>
@@ -174,7 +184,7 @@ export function EditPlansDialog({
 
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as any)}>
+              <Select value={status} onValueChange={(v) => setStatus(v as "active" | "inactive")}>
                 <SelectTrigger className="rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
@@ -186,7 +196,6 @@ export function EditPlansDialog({
             </div>
           </div>
 
-          {/* Stripe Price ID */}
           <div className="space-y-2">
             <Label>Stripe Price ID</Label>
             <Input
@@ -197,7 +206,6 @@ export function EditPlansDialog({
             />
           </div>
 
-          {/* Description */}
           <div className="space-y-2">
             <Label>Description</Label>
             <Input
@@ -207,7 +215,6 @@ export function EditPlansDialog({
             />
           </div>
 
-          {/* Features */}
           <div className="space-y-2">
             <Label>Features Description</Label>
             <Textarea
@@ -218,7 +225,6 @@ export function EditPlansDialog({
             />
           </div>
 
-          {/* Popular */}
           <div className="flex items-center gap-2">
             <Checkbox
               id="popular"
@@ -230,12 +236,12 @@ export function EditPlansDialog({
             </Label>
           </div>
 
-          {/* Actions */}
           <div className="flex justify-end gap-2 pt-2">
             <Button
               variant="outline"
               className="rounded-xl"
               onClick={() => onOpenChange(false)}
+              type="button"
             >
               Cancel
             </Button>
@@ -244,6 +250,7 @@ export function EditPlansDialog({
               className="rounded-xl bg-orange-600 hover:bg-orange-600"
               onClick={() => {
                 if (!selectedId) return;
+
                 onSavePlan(
                   selectedId,
                   {
@@ -259,8 +266,10 @@ export function EditPlansDialog({
                   },
                   true,
                 );
+
                 onOpenChange(false);
               }}
+              type="button"
             >
               Save Changes
             </Button>

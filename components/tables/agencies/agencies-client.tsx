@@ -63,6 +63,7 @@ export default function AgenciesClient() {
   function openDetails(a: Agency) {
     setSelected(a);
     setDetailsOpen(true);
+    console.log("get agency...",a)
   }
 
   const stats = useMemo(() => {

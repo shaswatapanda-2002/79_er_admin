@@ -15,8 +15,6 @@ http.interceptors.request.use((config) => {
   const storeToken = useAuthStore.getState().token;
   const token = storeToken || getToken();
 
-  // ✅ keep this log only for debugging (remove later)
-  console.log("TOKEN IN CLIENT:", token);
 
   if (token) {
     config.headers = config.headers || {};

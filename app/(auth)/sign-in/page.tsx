@@ -29,7 +29,7 @@ export default function SignInPage() {
       { email: email.trim().toLowerCase(), password },
       {
         onSuccess: () => {
-          router.push(next);
+          router.replace(next);
           router.refresh();
         },
         onError: (e: any) => setErr(e?.message || "Login failed"),

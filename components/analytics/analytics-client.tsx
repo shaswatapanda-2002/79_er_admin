@@ -19,6 +19,8 @@ import {
 } from "recharts";
 import { Download, Users, Building2, DollarSign, Percent, Loader2 } from "lucide-react";
 import { useAnalyticsOverviewQuery } from "@/src/queries/analytics.queries";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 function fmtMoneyShort(n: number) {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
@@ -39,7 +41,7 @@ function monthLabel(yyyymm: string) {
   if (!yyyymm) return "";
   const [y, m] = String(yyyymm).split("-");
   const d = new Date(Number(y), Number(m) - 1, 1);
-  return d.toLocaleString(undefined, { month: "short" }); // Aug, Sep...
+  return d.toLocaleString(undefined, { month: "short" });
 }
 
 function yTick(n: number) {
@@ -96,7 +98,6 @@ export default function AnalyticsClient() {
       active: x.activeUsers,
     })) || [];
 
-  // ✅ Revenue breakdown: grouped per month (App vs Agency)
   const revenueBreakdown =
     d?.charts?.revenueBreakdown?.map((x) => ({
       month: x.month,
@@ -104,7 +105,6 @@ export default function AnalyticsClient() {
       b2b: x.agencyRevenue,
     })) || [];
 
-  // ✅ filter "none" (and empty)
   const subscriptionDistribution =
     d?.charts?.subscriptionDistribution
       ?.filter((x) => {
@@ -113,7 +113,6 @@ export default function AnalyticsClient() {
       })
       .map((x) => ({ name: x.plan, value: x.count })) || [];
 
-  // ✅ Agency performance: grouped bars (Agency Count vs Revenue)
   const agencyPerformance =
     d?.charts?.agencyPerformanceByPlan
       ?.filter((x) => {
@@ -127,29 +126,109 @@ export default function AnalyticsClient() {
       })) || [];
 
   function exportReport() {
-    const report = {
-      generatedAt: new Date().toISOString(),
-      overview: d || null,
-    };
+    if (!d) return;
 
-    const blob = new Blob([JSON.stringify(report, null, 2)], {
-      type: "application/json",
+    const doc = new jsPDF("p", "mm", "a4");
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    doc.setFontSize(18);
+    doc.text("Analytics Report", 14, 18);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 25);
+
+    const cards = d?.cards;
+
+    autoTable(doc, {
+      startY: 32,
+      head: [["Metric", "Value", "Change"]],
+      body: [
+        [
+          "Total Users",
+          String((cards?.totalUsers?.value ?? 0).toLocaleString()),
+          fmtDelta(cards?.totalUsers?.growthPct ?? 0),
+        ],
+        [
+          "Active Agencies",
+          String((cards?.activeAgencies?.value ?? 0).toLocaleString()),
+          fmtDelta(cards?.activeAgencies?.growthPct ?? 0),
+        ],
+        [
+          "Monthly Revenue",
+          fmtMoneyFull(cards?.monthlyRevenue?.value ?? 0),
+          fmtDelta(cards?.monthlyRevenue?.growthPct ?? 0),
+        ],
+        [
+          "Conversion Rate",
+          `${(cards?.conversionRate?.value ?? 0).toFixed(2)}%`,
+          fmtDelta(cards?.conversionRate?.growthPct ?? 0),
+        ],
+      ],
+      theme: "grid",
+      headStyles: { fillColor: [234, 88, 12] },
+      styles: { fontSize: 10 },
     });
-    const url = URL.createObjectURL(blob);
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "analytics-report.json";
-    a.click();
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 10,
+      head: [["Month", "Total Users", "Active Users"]],
+      body: growthTrend.map((item) => [
+        monthLabel(item.month),
+        String(item.total),
+        String(item.active),
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: [59, 130, 246] },
+      styles: { fontSize: 10 },
+    });
 
-    URL.revokeObjectURL(url);
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 10,
+      head: [["Month", "App Revenue (B2C)", "Agency Revenue (B2B)"]],
+      body: revenueBreakdown.map((item) => [
+        monthLabel(item.month),
+        fmtMoneyFull(item.b2c),
+        fmtMoneyFull(item.b2b),
+      ]),
+      theme: "grid",
+      headStyles: { fillColor: [139, 92, 246] },
+      styles: { fontSize: 10 },
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 10,
+      head: [["Subscription Plan", "Count"]],
+      body: subscriptionDistribution.length
+        ? subscriptionDistribution.map((item) => [item.name, String(item.value)])
+        : [["No subscription data", "-"]],
+      theme: "grid",
+      headStyles: { fillColor: [16, 185, 129] },
+      styles: { fontSize: 10 },
+    });
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 10,
+      head: [["Plan", "Agency Count", "Revenue"]],
+      body: agencyPerformance.length
+        ? agencyPerformance.map((item) => [
+            item.plan,
+            String(item.agencies),
+            fmtMoneyFull(item.revenue),
+          ])
+        : [["No agency plan data", "-", "-"]],
+      theme: "grid",
+      headStyles: { fillColor: [245, 158, 11] },
+      styles: { fontSize: 10 },
+    });
+
+    doc.save("analytics-report.pdf");
   }
 
   const cards = d?.cards;
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="text-xl font-semibold">Analytics &amp; Reports</div>
@@ -170,7 +249,6 @@ export default function AnalyticsClient() {
         <div className="rounded-xl border p-3 text-sm text-red-600 bg-red-50">{errorMsg}</div>
       ) : null}
 
-      {/* KPI cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <StatCard
           value={loading ? "…" : (cards?.totalUsers?.value ?? 0).toLocaleString()}
@@ -198,12 +276,11 @@ export default function AnalyticsClient() {
         />
       </div>
 
-      {/* User Growth Trend */}
       <Card className="rounded-xl border bg-white">
         <CardContent className="p-4">
           <div className="text-sm font-semibold mb-3">User Growth Trend</div>
 
-          <div className="h-[260px]">
+          <div className="h-[260px] min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={growthTrend} margin={{ top: 8, right: 12, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -219,14 +296,12 @@ export default function AnalyticsClient() {
         </CardContent>
       </Card>
 
-      {/* Revenue + Subscription Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {/* ✅ Revenue Breakdown (like screenshot) */}
         <Card className="rounded-xl border bg-white">
           <CardContent className="p-4">
             <div className="text-sm font-semibold mb-3">Revenue Breakdown</div>
 
-            <div className="h-[230px]">
+            <div className="h-[230px] min-w-0">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={revenueBreakdown}
@@ -235,23 +310,9 @@ export default function AnalyticsClient() {
                   barGap={6}
                 >
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: "#6B7280", fontSize: 12 }}
-                    tickFormatter={monthLabel}
-                  />
-                  <YAxis
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: "#6B7280", fontSize: 12 }}
-                    tickFormatter={yTick}
-                  />
-                  <Tooltip
-                    formatter={(v: any) => fmtMoneyFull(Number(v))}
-                    labelFormatter={(l) => monthLabel(String(l))}
-                  />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fill: "#6B7280", fontSize: 12 }} tickFormatter={monthLabel} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fill: "#6B7280", fontSize: 12 }} tickFormatter={yTick} />
+                  <Tooltip formatter={(v: any) => fmtMoneyFull(Number(v))} labelFormatter={(l) => monthLabel(String(l))} />
                   <Legend verticalAlign="bottom" align="center" />
                   <Bar dataKey="b2c" name="App (B2C)" fill="#3B82F6" radius={[6, 6, 0, 0]} maxBarSize={32} />
                   <Bar dataKey="b2b" name="Agency (B2B)" fill="#8B5CF6" radius={[6, 6, 0, 0]} maxBarSize={32} />
@@ -261,12 +322,11 @@ export default function AnalyticsClient() {
           </CardContent>
         </Card>
 
-        {/* Subscription Distribution */}
         <Card className="rounded-xl border bg-white">
           <CardContent className="p-4">
             <div className="text-sm font-semibold mb-3">Subscription Distribution</div>
 
-            <div className="h-[230px] flex items-center justify-center">
+            <div className="h-[230px] flex items-center justify-center min-w-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Tooltip />
@@ -292,12 +352,11 @@ export default function AnalyticsClient() {
         </Card>
       </div>
 
-      {/* ✅ Agency Performance by Plan (GROUPED like revenue breakdown) */}
       <Card className="rounded-xl border bg-white">
         <CardContent className="p-4">
           <div className="text-sm font-semibold mb-3">Agency Performance by Plan</div>
 
-          <div className="h-[260px]">
+          <div className="h-[260px] min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={agencyPerformance}
@@ -306,17 +365,8 @@ export default function AnalyticsClient() {
                 barGap={6}
               >
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="plan"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fill: "#6B7280", fontSize: 12 }}
-                />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fill: "#6B7280", fontSize: 12 }}
-                />
+                <XAxis dataKey="plan" tickLine={false} axisLine={false} tick={{ fill: "#6B7280", fontSize: 12 }} />
+                <YAxis tickLine={false} axisLine={false} tick={{ fill: "#6B7280", fontSize: 12 }} />
                 <Tooltip
                   formatter={(v: any, name: any) => {
                     if (String(name).toLowerCase().includes("revenue")) {
@@ -326,20 +376,8 @@ export default function AnalyticsClient() {
                   }}
                 />
                 <Legend verticalAlign="bottom" align="center" />
-                <Bar
-                  dataKey="agencies"
-                  name="Agency Count"
-                  fill="#6366F1"
-                  radius={[6, 6, 0, 0]}
-                  maxBarSize={32}
-                />
-                <Bar
-                  dataKey="revenue"
-                  name="Revenue"
-                  fill="#10B981"
-                  radius={[6, 6, 0, 0]}
-                  maxBarSize={32}
-                />
+                <Bar dataKey="agencies" name="Agency Count" fill="#6366F1" radius={[6, 6, 0, 0]} maxBarSize={32} />
+                <Bar dataKey="revenue" name="Revenue" fill="#10B981" radius={[6, 6, 0, 0]} maxBarSize={32} />
               </BarChart>
             </ResponsiveContainer>
           </div>
