@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { Toaster } from "sonner";
@@ -26,12 +26,12 @@ export default function AppProviders({
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TopProgress />
+      <Suspense fallback={null}>
+        <TopProgress />
+      </Suspense>{" "}
       <GlobalLoader />
       <Toaster richColors position="top-right" />
-
       {children}
-
       {process.env.NODE_ENV === "development" && (
         <ReactQueryDevtools initialIsOpen={false} />
       )}

@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import type { AppUser, SubscriptionPlan as Subscription, UserStatus } from "@/src/types/app-user.types";
+import type { AppUser, SubscriptionPlan as Subscription, UserStatus } from "./types";
 import { StatusBadge, SubscriptionBadge } from "./badges";
 import { UserDetailsDialog } from "./user-details-dialog";
 import { toastError, toastSuccess } from "@/lib/toast";

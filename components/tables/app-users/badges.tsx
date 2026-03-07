@@ -1,11 +1,16 @@
 import { Badge } from "@/components/ui/badge";
-import type { Subscription, UserStatus } from "./types";
-//components/tables/app-users/badges.tsx
-export function SubscriptionBadge({ value }: { value: Subscription }) {
+import type { SubscriptionPlan, UserStatus } from "./types";
+
+// components/tables/app-users/badges.tsx
+export function SubscriptionBadge({ value }: { value: SubscriptionPlan }) {
   const label =
-    value === "premium" ? "Premium" :
-    value === "pro" ? "Pro" :
-    value === "trial" ? "Trial" : "Free";
+    value === "premium"
+      ? "Premium"
+      : value === "pro"
+      ? "Pro"
+      : value === "trial"
+      ? "Trial"
+      : "Free";
 
   const className =
     value === "premium"

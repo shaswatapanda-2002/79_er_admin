@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Eye, Pencil, ShieldBan, Loader2 } from "lucide-react";
-import type { AppUser } from "@/src/types/app-user.types";
+import type { AppUser } from "./types";
 import { StatusBadge, SubscriptionBadge } from "./badges";
 import { useAdminUserDetailsQuery } from "@/src/queries/admin-users.queries";
 import { toastError } from "@/lib/toast";
